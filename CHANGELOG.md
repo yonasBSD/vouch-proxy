@@ -4,6 +4,10 @@
 
 Coming soon! Please document any work in progress here as part of your PR. It will be moved to the next tag when released.
 
+## v0.46.0
+
+- upgrade golang to `v1.26` from `v1.23`
+
 ## v0.45.0
 
 - Implement a Discord provider that uses `Username` as the username to match against in the `whiteList` config
