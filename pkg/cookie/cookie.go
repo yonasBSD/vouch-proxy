@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	// "github.com/vouch/vouch-proxy/pkg/structs"
@@ -162,11 +163,12 @@ func ClearCookie(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(cookie.Name, cfg.Cfg.Cookie.Name) {
 			log.Debugf("deleting cookie: %s", cookie.Name)
 			http.SetCookie(w, &http.Cookie{
-				Name:     cookie.Name,
-				Value:    "delete",
-				Path:     "/",
-				Domain:   domain,
-				MaxAge:   -1,
+				Name:   cookie.Name,
+				Value:  "delete",
+				Path:   "/",
+				Domain: domain,
+				// https://stackoverflow.com/questions/5285940/correct-way-to-delete-cookies-server-side
+				Expires:  time.Unix(0, 0), // system dependent but usually Thu, 01 Jan 1970 00:00:00 GMT
 				Secure:   cfg.Cfg.Cookie.Secure,
 				HttpOnly: cfg.Cfg.Cookie.HTTPOnly,
 			})

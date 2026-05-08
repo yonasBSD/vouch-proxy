@@ -4,6 +4,10 @@
 
 Coming soon! Please document any work in progress here as part of your PR. It will be moved to the next tag when released.
 
+## v0.47.1
+
+- set Cookie.Expires to Jan 1 1970 to delete the VP cookie in a manner most browsers will comply with
+
 ## v0.47.0
 
 - improve host check against jwt audience claim
