@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/vouch/vouch-proxy/pkg/cfg"
+	"github.com/vouch/vouch-proxy/pkg/domains"
 	"github.com/vouch/vouch-proxy/pkg/jwtmanager"
 	"github.com/vouch/vouch-proxy/pkg/responses"
 )
@@ -51,7 +52,7 @@ func ValidateRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !cfg.Cfg.AllowAllUsers {
-		if !claims.SiteInAudience(r.Host) {
+		if !claims.SiteInAudience(r.Host) || domains.Matches(r.Host) == "" {
 			send401or200PublicAccess(w, r,
 				fmt.Errorf("http header 'Host: %s' not authorized for configured `vouch.domains` (is Host being sent properly?)", r.Host))
 			return
@@ -81,9 +82,6 @@ func ValidateRequestHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		responses.OK200(w, r)
 	}
-
-	// TODO
-	// parse the jwt and see if the claim is valid for the domain
 
 }
 

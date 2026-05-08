@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func Test_getCacheExpirationDuration(t *testing.T) {
@@ -23,11 +25,11 @@ func Test_getCacheExpirationDuration(t *testing.T) {
 	now := time.Now()
 
 	claimsA := lc
-	claimsA.ExpiresAt = now.Add(time.Minute * time.Duration(expire+5)).Unix()
+	claimsA.ExpiresAt = jwt.NewNumericDate(now.Add(time.Minute * time.Duration(expire+5)))
 
 	claimsB := lc
 	dBexp := time.Minute * time.Duration(expire-5)
-	claimsB.ExpiresAt = now.Add(dBexp).Unix()
+	claimsB.ExpiresAt = jwt.NewNumericDate(now.Add(dBexp))
 
 	tests := []struct {
 		name   string

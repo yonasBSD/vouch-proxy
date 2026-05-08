@@ -53,18 +53,22 @@ func init() {
 		customClaims.Claims,
 		t1.PAccessToken,
 		t1.PIdToken,
-		StandardClaims,
+		RegisteredClaims,
 	}
+}
 
+func setUp(t *testing.T, cfgFile string) {
+	rootDir := os.Getenv(cfg.Branding.UCName + "_ROOT")
+	if err := os.Setenv(cfg.Branding.UCName+"_CONFIG", filepath.Join(rootDir, "config/testing", cfgFile)); err != nil {
+		t.Errorf("failed setting environment variable %s_CONFIG", cfg.Branding.UCName)
+	}
+	Configure()
+	cfg.InitForTestPurposes()
 }
 
 func TestClaimsHMAC(t *testing.T) {
-	rootDir := os.Getenv(cfg.Branding.UCName + "_ROOT")
 	for _, cfgFile := range []string{"test_config.yml", "test_config_rsa.yml"} {
-		if err := os.Setenv(cfg.Branding.UCName+"_CONFIG", filepath.Join(rootDir, "config/testing", cfgFile)); err != nil {
-			t.Errorf("failed setting environment variable %s_CONFIG", cfg.Branding.UCName)
-		}
-
+		setUp(t, cfgFile)
 		json.Unmarshal([]byte(claimjson), &customClaims.Claims)
 
 		log.Debugf("jwt config %s %d", string(cfg.Cfg.JWT.Secret), cfg.Cfg.JWT.MaxAge)
@@ -85,6 +89,7 @@ func TestClaimsHMAC(t *testing.T) {
 }
 
 func TestClaims(t *testing.T) {
+	setUp(t, "test_config.yml")
 	aud = audience()
 	log.Debugf("jwt config %s %d", string(cfg.Cfg.JWT.Secret), cfg.Cfg.JWT.MaxAge)
 	assert.NotEmpty(t, cfg.Cfg.JWT.Secret)
@@ -101,4 +106,35 @@ func TestClaims(t *testing.T) {
 	log.Infof("utsParsed: %+v", utsParsed)
 	log.Infof("Audience: %+v", aud)
 	assert.True(t, SiteInToken(cfg.Cfg.Domains[0], utsParsed))
+}
+
+func TestVouchClaims_SiteInAudience(t *testing.T) {
+	tests := []struct {
+		name    string // description of this test case
+		cfgFile string
+		s       string
+		want    bool
+	}{
+		// test cases
+		{"vouch.github.io", "test_config_oauth_claims.yml", "vouch.github.io", true},
+		{"evilvouch.github.io", "test_config_oauth_claims.yml", "evilvouch.github.io", false},
+		{"vouch.github.io.attacker.com", "test_config_oauth_claims.yml", "vouch.github.io.attacker.com", false},
+		{"evilvouch.github.io.attacker.com", "test_config_oauth_claims.yml", "evilvouch.github.io.attacker.com", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setUp(t, tt.cfgFile)
+			jwt, err := NewVPJWT(u1, customClaims, t1)
+			assert.NoError(t, err)
+			claims, err := ClaimsFromJWT(jwt)
+			if err != nil {
+				t.Fatalf("could not construct receiver type: %v", err)
+			}
+			got := claims.SiteInAudience(tt.s)
+			// TODO: update the condition below to compare got with tt.want.
+			if got != tt.want {
+				t.Errorf("SiteInAudience() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

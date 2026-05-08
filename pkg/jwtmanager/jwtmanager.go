@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 
 	"github.com/vouch/vouch-proxy/pkg/cfg"
@@ -37,15 +37,15 @@ type VouchClaims struct {
 	CustomClaims map[string]interface{}
 	PAccessToken string
 	PIdToken     string
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
-// StandardClaims jwt.StandardClaims implementation
-var StandardClaims jwt.StandardClaims
+// RegisteredClaims jwt.RegisteredClaims implementation
+var RegisteredClaims jwt.RegisteredClaims
 
 var logger *zap.Logger
 var log *zap.SugaredLogger
-var aud string
+var aud []string
 
 // Configure see main.go configure()
 func Configure() {
@@ -53,14 +53,14 @@ func Configure() {
 	logger = cfg.Logging.FastLogger
 	cacheConfigure()
 	aud = audience()
-	StandardClaims = jwt.StandardClaims{
+	RegisteredClaims = jwt.RegisteredClaims{
 		Issuer:   cfg.Cfg.JWT.Issuer,
 		Audience: aud,
 	}
 }
 
 // `aud` of the issued JWT https://tools.ietf.org/html/rfc7519#section-4.1.3
-func audience() string {
+func audience() []string {
 	aud := make([]string, 0)
 	// TODO: the Sites that end up in the JWT come from here
 	// if we add fine grain ability (ACL?) to the equation
@@ -71,7 +71,7 @@ func audience() string {
 	if cfg.Cfg.Cookie.Domain != "" {
 		aud = append(aud, cfg.Cfg.Cookie.Domain)
 	}
-	return strings.Join(aud, comma)
+	return aud
 }
 
 // NewVPJWT issue a signed Vouch Proxy JWT for a user
@@ -83,11 +83,11 @@ func NewVPJWT(u structs.User, customClaims structs.CustomClaims, ptokens structs
 		customClaims.Claims,
 		ptokens.PAccessToken,
 		ptokens.PIdToken,
-		StandardClaims,
+		RegisteredClaims,
 	}
 
 	claims.Audience = aud
-	claims.ExpiresAt = time.Now().Add(time.Minute * time.Duration(cfg.Cfg.JWT.MaxAge)).Unix()
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(cfg.Cfg.JWT.MaxAge)))
 
 	// https://github.com/vouch/vouch-proxy/issues/287
 	if cfg.Cfg.Headers.AccessToken == "" {
@@ -101,7 +101,7 @@ func NewVPJWT(u structs.User, customClaims structs.CustomClaims, ptokens structs
 	// https://godoc.org/github.com/golang-jwt/jwt#NewWithClaims
 	token := jwt.NewWithClaims(jwt.GetSigningMethod(cfg.Cfg.JWT.SigningMethod), claims)
 	// log.Debugf("token: %v", token)
-	log.Debugf("token created, expires: %d diff from now: %d", claims.StandardClaims.ExpiresAt, claims.StandardClaims.ExpiresAt-time.Now().Unix())
+	log.Debugf("token created, expires: %d diff from now: %d", claims.RegisteredClaims.ExpiresAt, claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix())
 
 	key, err := cfg.SigningKey()
 	if err != nil {
@@ -121,6 +121,7 @@ func NewVPJWT(u structs.User, customClaims structs.CustomClaims, ptokens structs
 	return ss, nil
 }
 
+// TODO: is this dead code?
 // SiteInToken searches does the token contain the site?
 func SiteInToken(site string, token *jwt.Token) bool {
 	if claims, ok := token.Claims.(*VouchClaims); ok {
@@ -158,10 +159,10 @@ func ParseTokenString(tokenString string) (*jwt.Token, error) {
 }
 
 // SiteInAudience does the claim contain the value?
-func (claims *VouchClaims) SiteInAudience(site string) bool {
-	for _, s := range strings.Split(aud, comma) {
-		if strings.Contains(site, s) {
-			log.Debugf("site %s is found for claims.Audience %s", site, s)
+func (claims *VouchClaims) SiteInAudience(s string) bool {
+	for _, a := range claims.Audience {
+		if s == a || strings.HasSuffix(s, "."+a) {
+			log.Debugf("site %s is found for claims.Audience %s", s, a)
 			return true
 		}
 	}

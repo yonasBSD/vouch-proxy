@@ -103,8 +103,9 @@ func getCacheExpirationDuration(claims *VouchClaims) time.Duration {
 
 	now := time.Now().Unix()
 	expiresAt := now + int64(dExp/time.Second)
-	if !claims.VerifyExpiresAt(expiresAt, true) {
-		jwtExpiresIn := time.Duration((claims.ExpiresAt - now) * int64(time.Second))
+
+	if claims.ExpiresAt.Unix() < expiresAt {
+		jwtExpiresIn := time.Duration((claims.ExpiresAt.Unix() - now) * int64(time.Second))
 		log.Debugf("cache default expiration (%d) is after jwt expiration (%d). setting cache expiration to claim expiration for this entry", dExp, jwtExpiresIn)
 		return jwtExpiresIn
 	}
