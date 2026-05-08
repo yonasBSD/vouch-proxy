@@ -4,6 +4,11 @@
 
 Coming soon! Please document any work in progress here as part of your PR. It will be moved to the next tag when released.
 
+## v0.47.0
+
+- improve host check against jwt audience claim
+- upgrade to github.com/golang-jwt/jwt/v5
+
 ## v0.46.0
 
 - upgrade golang to `v1.26` from `v1.23`
