@@ -161,9 +161,13 @@ func ParseTokenString(tokenString string) (*jwt.Token, error) {
 // SiteInAudience does the claim contain the value?
 func (claims *VouchClaims) SiteInAudience(s string) bool {
 	for _, a := range claims.Audience {
-		if s == a || strings.HasSuffix(s, "."+a) {
-			log.Debugf("site %s is found for claims.Audience %s", s, a)
-			return true
+		// jwt/v4 serialized the audience as a comma-separated string;
+		// jwt/v5 deserializes that into a single-element []string.
+		for _, d := range strings.Split(a, comma) {
+			if s == d || strings.HasSuffix(s, "."+d) {
+				log.Debugf("site %s is found for claims.Audience %s", s, d)
+				return true
+			}
 		}
 	}
 	return false

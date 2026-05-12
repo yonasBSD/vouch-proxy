@@ -16,10 +16,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/vouch/vouch-proxy/pkg/cfg"
 	"github.com/vouch/vouch-proxy/pkg/structs"
-
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -110,16 +111,16 @@ func TestClaims(t *testing.T) {
 
 func TestVouchClaims_SiteInAudience(t *testing.T) {
 	tests := []struct {
-		name    string // description of this test case
+		name    string
 		cfgFile string
 		s       string
 		want    bool
 	}{
-		// test cases
-		{"vouch.github.io", "test_config_oauth_claims.yml", "vouch.github.io", true},
-		{"evilvouch.github.io", "test_config_oauth_claims.yml", "evilvouch.github.io", false},
-		{"vouch.github.io.attacker.com", "test_config_oauth_claims.yml", "vouch.github.io.attacker.com", false},
-		{"evilvouch.github.io.attacker.com", "test_config_oauth_claims.yml", "evilvouch.github.io.attacker.com", false},
+		{"exact match", "test_config_oauth_claims.yml", "vouch.github.io", true},
+		{"subdomain match", "test_config_oauth_claims.yml", "sub.vouch.github.io", true},
+		{"suffix attack", "test_config_oauth_claims.yml", "evilvouch.github.io", false},
+		{"attacker parent domain", "test_config_oauth_claims.yml", "vouch.github.io.attacker.com", false},
+		{"attacker combined", "test_config_oauth_claims.yml", "evilvouch.github.io.attacker.com", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -131,9 +132,39 @@ func TestVouchClaims_SiteInAudience(t *testing.T) {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
 			got := claims.SiteInAudience(tt.s)
-			// TODO: update the condition below to compare got with tt.want.
 			if got != tt.want {
-				t.Errorf("SiteInAudience() = %v, want %v", got, tt.want)
+				t.Errorf("SiteInAudience(%q) = %v, want %v", tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSiteInAudienceLegacyFormat(t *testing.T) {
+	claims := &VouchClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience: jwt.ClaimStrings{"vouch.github.io,other.test"},
+		},
+	}
+
+	tests := []struct {
+		name string
+		s    string
+		want bool
+	}{
+		{"exact first", "vouch.github.io", true},
+		{"exact second", "other.test", true},
+		{"subdomain first", "sub.vouch.github.io", true},
+		{"subdomain second", "sub.other.test", true},
+		{"suffix attack first", "evilvouch.github.io", false},
+		{"suffix attack second", "evilother.test", false},
+		{"attacker parent", "vouch.github.io.attacker.com", false},
+		{"unrelated", "evil.com", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := claims.SiteInAudience(tt.s)
+			if got != tt.want {
+				t.Errorf("SiteInAudience(%q) = %v, want %v", tt.s, got, tt.want)
 			}
 		})
 	}
