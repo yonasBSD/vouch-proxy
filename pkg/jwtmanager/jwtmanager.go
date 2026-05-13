@@ -160,7 +160,9 @@ func ParseTokenString(tokenString string) (*jwt.Token, error) {
 
 // SiteInAudience does the claim contain the value?
 func (claims *VouchClaims) SiteInAudience(s string) bool {
+	log.Debugf("claims.Audience: %+v", claims.Audience)
 	for _, a := range claims.Audience {
+		log.Debugf("evaluating audience %s vs site %s", a, s)
 		if s == a || strings.HasSuffix(s, "."+a) {
 			log.Debugf("site %s is found for claims.Audience %s", s, a)
 			return true
