@@ -259,7 +259,7 @@ func oauthLoginURL(r *http.Request, session sessions.Session) string {
 	if len(cfg.GenOAuth.RedirectURLs) > 0 {
 		found := false
 		domain := domains.Matches(r.Host)
-		log.Debugf("/login looking for callback_url matching %s", domain)
+		log.Debugf("/login looking for callback_url matching %s from host %s", domain, r.Host)
 		for _, v := range cfg.GenOAuth.RedirectURLs {
 			if strings.Contains(v, domain) {
 				found = true

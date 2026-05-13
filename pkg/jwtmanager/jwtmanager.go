@@ -160,6 +160,7 @@ func ParseTokenString(tokenString string) (*jwt.Token, error) {
 
 // SiteInAudience does the claim contain the value?
 func (claims *VouchClaims) SiteInAudience(s string) bool {
+	log.Debugf("claims.Audience: %+v", claims.Audience)
 	for _, a := range claims.Audience {
 		// jwt/v4 serialized the audience as a comma-separated string;
 		// jwt/v5 deserializes that into a single-element []string.
